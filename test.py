@@ -16,12 +16,14 @@ import architectures
 import numpy as np
 import dynamics as dn
 import rl
+import pickle as pck
 
 # Model and reward to test algorithms
 model_path = "../models/maddpg_tertiary_ratioreward"
 reward_path = "cummulative_reward_maddpg_tertiary_ratioreward.pickle"
 
-reward = rl.readData(reward_path)
+with open("reward.pickle", "rb") as handle:
+    reward = pck.load(handle)
 
 # Instances of the environment
 generator_1 = dn.Node_Secondary(1.5,alpha=2)
