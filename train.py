@@ -42,7 +42,7 @@ init = tf.global_variables_initializer()
 gamma = 0.9
 tau = 0.001
 epsilon = 0.99
-episodes = 50000
+episodes = 5000
 steps = 100
 cum_r = 0
 trace = 8
@@ -245,10 +245,10 @@ with tf.Session() as session:
                                                     actor_2.train_length: trace})
 
                 # Update target network parameters
-                session.run(actor_t_1.update_network_params)
-                session.run(critic_t_1.update_network_params)
-                session.run(actor_t_2.update_network_params)
-                session.run(critic_t_2.update_network_params)
+                session.run(actor_t_1.update_parameters)
+                session.run(critic_t_1.update_parameters)
+                session.run(actor_t_2.update_parameters)
+                session.run(critic_t_2.update_parameters)
             
             # Update the state
             state_1 = new_state_1
@@ -267,6 +267,6 @@ with tf.Session() as session:
             
     """ SAVE THE DATA"""
     saver = tf.train.Saver()
-    saver.save(session, "model")
+    saver.save(session, "model/model")
     with open("reward.pickle", "wb") as handle:
         pck.dump(cum_r_list, handle, protocol=pck.HIGHEST_PROTOCOL)

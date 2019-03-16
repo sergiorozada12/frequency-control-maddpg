@@ -57,13 +57,13 @@ class Actor:
         self.optimizer = tf.train.AdamOptimizer(1e-4)
         self.upd = self.optimizer.apply_gradients(zip(self.actor_gradients, self.network_params))
 
-        self.update_network_params = []
+        self.update_parameters = []
 
     def create_op_holder(self, params, tau):
         """ Use target network op holder if needed"""
-        self.update_network_params = [self.network_params[i].assign(tf.multiply(params[i], tau) +
-                                                                    tf.multiply(self.network_params[i], 1. - tau))
-                                      for i in range(len(self.network_params))]
+        self.update_parameters = [self.network_params[i].assign(tf.multiply(params[i], tau) +
+                                                                tf.multiply(self.network_params[i], 1. - tau))
+                                  for i in range(len(self.network_params))]
 
 
 class Critic:
@@ -126,10 +126,10 @@ class Critic:
         # Gradients
         self.critic_gradients = tf.gradients(self.q, self.a)
 
-        self.update_network_params = []
+        self.update_parameters = []
 
     def create_op_holder(self, params, tau):
         """ Use target network op holder if needed"""
-        self.update_network_params = [self.network_params[i].assign(tf.multiply(params[i], tau) +
-                                                                    tf.multiply(self.network_params[i], 1. - tau))
-                                      for i in range(len(self.network_params))]
+        self.update_parameters = [self.network_params[i].assign(tf.multiply(params[i], tau) +
+                                                                tf.multiply(self.network_params[i], 1. - tau))
+                                  for i in range(len(self.network_params))]
