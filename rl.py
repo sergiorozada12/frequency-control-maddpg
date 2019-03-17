@@ -68,12 +68,7 @@ def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2):
             epsilon (float): new epsilon.
     """
     
-    r = 0
+    if (np.abs(delta_f) < e_f) & (np.abs(z1-(z2/2)) < e_z):
+        return 100
     
-    if np.abs(delta_f) < e_f:
-        r = 100
-        
-    if np.abs(z1-(z2/2)) < e_z:
-        r += 100
-    
-    return r
+    return 0
