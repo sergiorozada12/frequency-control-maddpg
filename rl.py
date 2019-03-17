@@ -54,7 +54,7 @@ def get_new_epsilon(epsilon):
     return epsilon*0.999999
 
 
-def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2):
+def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2): #TODO: Implement Self-learning
     """" Get reward from two agents.
 
         Args:
