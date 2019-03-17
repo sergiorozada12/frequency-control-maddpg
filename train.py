@@ -9,28 +9,30 @@ import pickle as pck
 
 tf.reset_default_graph()
 h_size = 100
+a_dof = 2
+c_dof = 5
 
 # First agent
 lstm_actor_1 = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
 lstm_critic_1 = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
-actor_1 = architecture.Actor(h_size, lstm_actor_1, 'actor_1', 0)
-critic_1 = architecture.Critic(h_size, lstm_critic_1, 'critic_1', len(tf.trainable_variables()))
+actor_1 = architecture.Actor(h_size, lstm_actor_1, 'actor_1', 0, num_inputs=a_dof)
+critic_1 = architecture.Critic(h_size, lstm_critic_1, 'critic_1', len(tf.trainable_variables()), num_inputs=c_dof)
 
 lstm_actor_t_1 = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
 lstm_critic_t_1 = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
-actor_t_1 = architecture.Actor(h_size, lstm_actor_t_1, 'actor_t_1', len(tf.trainable_variables()))
-critic_t_1 = architecture.Critic(h_size, lstm_critic_t_1, 'critic_t_1', len(tf.trainable_variables()))
+actor_t_1 = architecture.Actor(h_size, lstm_actor_t_1, 'actor_t_1', len(tf.trainable_variables()), num_inputs=a_dof)
+critic_t_1 = architecture.Critic(h_size, lstm_critic_t_1, 'critic_t_1', len(tf.trainable_variables()), num_inputs=c_dof)
 
 # Second agent
 lstm_actor_2 = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
 lstm_critic_2 = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
-actor_2 = architecture.Actor(h_size, lstm_actor_2, 'actor_2', len(tf.trainable_variables()))
-critic_2 = architecture.Critic(h_size, lstm_critic_2, 'critic_2', len(tf.trainable_variables()))
+actor_2 = architecture.Actor(h_size, lstm_actor_2, 'actor_2', len(tf.trainable_variables()), num_inputs=a_dof)
+critic_2 = architecture.Critic(h_size, lstm_critic_2, 'critic_2', len(tf.trainable_variables()), num_inputs=c_dof)
 
 lstm_actor_t_2 = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
 lstm_critic_t_2 = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
-actor_t_2 = architecture.Actor(h_size, lstm_actor_t_2, 'actor_t_2', len(tf.trainable_variables()))
-critic_t_2 = architecture.Critic(h_size, lstm_critic_t_2, 'critic_t_2', len(tf.trainable_variables()))
+actor_t_2 = architecture.Actor(h_size, lstm_actor_t_2, 'actor_t_2', len(tf.trainable_variables()), num_inputs=a_dof)
+critic_t_2 = architecture.Critic(h_size, lstm_critic_t_2, 'critic_t_2', len(tf.trainable_variables()), num_inputs=c_dof)
 
 # Instantiate the model to initialize the variables
 init = tf.global_variables_initializer()
@@ -60,7 +62,7 @@ critic_t_2.create_op_holder(critic_2.network_params, tau)
 buffer = rl.ExperienceBuffer(10000)
 
 # Launch the learning
-with tf.Session() as session:
+with tf.Session() as session: #TODO: See state inside the LSTM
     session.run(init)
     
     # Iterate all the episodes
@@ -95,18 +97,19 @@ with tf.Session() as session:
             current_Z_1 = generator_1.get_z()
             current_Z_2 = generator_2.get_z()
             
+            inp_1 = np.array([current_f, current_Z_1]).reshape(1, a_dof)
+            inp_2 = np.array([current_f, current_Z_2]).reshape(1, a_dof)
+            
             # First agent
             a_1, new_state_1 = session.run([actor_1.a, actor_1.rnn_state], 
-                                           feed_dict={actor_1.f: np.array(current_f).reshape(1, 1),
-                                                      actor_1.p: np.array(current_Z_1).reshape(1, 1),
+                                           feed_dict={actor_1.inp: inp_1,
                                                       actor_1.state_in: state_1, actor_1.batch_size: 1, 
                                                       actor_1.train_length: 1})
             a_1 = a_1[0, 0] + epsilon*np.random.normal(0.0, 0.2)
             
             # Second agent
             a_2, new_state_2 = session.run([actor_2.a, actor_2.rnn_state], 
-                                           feed_dict={actor_2.f: np.array(current_f).reshape(1, 1),
-                                                      actor_2.p: np.array(current_Z_2).reshape(1, 1),
+                                           feed_dict={actor_2.inp: inp_2,
                                                       actor_2.state_in: state_2, actor_2.batch_size: 1,
                                                       actor_2.train_length: 1})
             a_2 = a_2[0, 0] + epsilon*np.random.normal(0.0, 0.2)
@@ -146,32 +149,28 @@ with tf.Session() as session:
                 actions_2 = np.reshape(mini_batch[:, 7], [32, 1])
                 rewards = np.reshape(mini_batch[:, 8], [32, 1])
 
+                a_inp_1 = np.hstack((s_prime, Z1_prime))
+                a_inp_2 = np.hstack((s_prime, Z2_prime))
+
                 # Predict the actions of both actors
-                a_target_1 = session.run(actor_t_1.a, feed_dict={actor_t_1.f: s_prime, 
-                                                                 actor_t_1.p: Z1_prime, 
+                a_target_1 = session.run(actor_t_1.a, feed_dict={actor_t_1.inp: a_inp_1,
                                                                  actor_t_1.state_in: state_train, 
                                                                  actor_t_1.batch_size: batch,
                                                                  actor_t_1.train_length: trace})
-                a_target_2 = session.run(actor_t_2.a, feed_dict={actor_t_2.f: s_prime, 
-                                                                 actor_t_2.p: Z2_prime, 
+                a_target_2 = session.run(actor_t_2.a, feed_dict={actor_t_2.inp: a_inp_2,
                                                                  actor_t_2.state_in: state_train, 
                                                                  actor_t_2.batch_size: batch,
                                                                  actor_t_2.train_length: trace})
+
+                c_inp_1 = np.hstack((s_prime, Z1_prime, a_target_1, Z2_prime, a_target_2))
+                c_inp_2 = np.hstack((s_prime, Z2_prime, a_target_2, Z1_prime, a_target_1))
                 
                 # Predict Q of the critics
-                Q_target_1 = session.run(critic_t_1.q, feed_dict={critic_t_1.f: s_prime, 
-                                                                  critic_t_1.p: Z1_prime,
-                                                                  critic_t_1.a: a_target_1,
-                                                                  critic_t_1.p_o: Z2_prime,
-                                                                  critic_t_1.a_o: a_target_2, 
+                Q_target_1 = session.run(critic_t_1.q, feed_dict={critic_t_1.inp: c_inp_1,
                                                                   critic_t_1.train_length: trace,
                                                                   critic_t_1.batch_size: batch, 
                                                                   critic_t_1.state_in: state_train})   
-                Q_target_2 = session.run(critic_t_2.q, feed_dict={critic_t_2.f: s_prime, 
-                                                                  critic_t_2.p: Z2_prime, 
-                                                                  critic_t_2.a: a_target_2,
-                                                                  critic_t_2.p_o: Z1_prime,
-                                                                  critic_t_2.a_o: a_target_1,
+                Q_target_2 = session.run(critic_t_2.q, feed_dict={critic_t_2.inp: c_inp_2,
                                                                   critic_t_2.train_length: trace,
                                                                   critic_t_2.batch_size: batch, 
                                                                   critic_t_2.state_in: state_train})
@@ -179,66 +178,56 @@ with tf.Session() as session:
                 Q_target_2 = rewards + gamma*Q_target_2
 
                 # Update the critic networks with the new Q's
-                session.run(critic_1.upd, feed_dict={critic_1.f: s,
-                                                     critic_1.a: actions_1, 
-                                                     critic_1.p: Z1, 
-                                                     critic_1.a_o: actions_2,
+                c_inp_1 = np.hstack((s, Z1, actions_1, Z2, actions_2))
+                c_inp_2 = np.hstack((s, Z2, actions_2, Z1, actions_1))
+
+                session.run(critic_1.upd, feed_dict={critic_1.inp: c_inp_1,
                                                      critic_1.target_q: Q_target_1,
-                                                     critic_1.p_o: Z2,
                                                      critic_1.train_length: trace,
                                                      critic_1.batch_size: batch, 
                                                      critic_1.state_in: state_train})  
-                session.run(critic_2.upd, feed_dict={critic_2.f: s, 
-                                                     critic_2.a: actions_2, 
-                                                     critic_2.p: Z2, 
-                                                     critic_2.a_o: actions_1, 
+                session.run(critic_2.upd, feed_dict={critic_2.inp: c_inp_2,
                                                      critic_2.target_q: Q_target_2,
-                                                     critic_2.p_o: Z1,
                                                      critic_2.train_length: trace, 
                                                      critic_2.batch_size: batch,
                                                      critic_2.state_in: state_train}) 
     
                 # Sample the new actions
-                new_a_1 = session.run(actor_1.a, feed_dict={actor_1.f: s, 
-                                                            actor_1.p: Z1,
+                a_inp_1 = np.hstack((s, Z1))
+                a_inp_2 = np.hstack((s, Z2))
+
+                new_a_1 = session.run(actor_1.a, feed_dict={actor_1.inp: a_inp_1,
                                                             actor_1.state_in: state_train, 
                                                             actor_1.batch_size: batch, 
                                                             actor_1.train_length: trace})
-                new_a_2 = session.run(actor_2.a, feed_dict={actor_2.f: s, 
-                                                            actor_2.p: Z2,
+                new_a_2 = session.run(actor_2.a, feed_dict={actor_2.inp: a_inp_2,
                                                             actor_2.state_in: state_train, 
                                                             actor_2.batch_size: batch, 
                                                             actor_2.train_length: trace})
                 
                 # Calculate the gradients
-                gradients_1 = session.run(critic_1.critic_gradients, feed_dict={critic_1.f: s,
-                                                                                critic_1.a: new_a_1,
-                                                                                critic_1.p: Z1, 
-                                                                                critic_1.a_o: new_a_2,
+                c_inp_1 = np.hstack((s, Z1, new_a_1, Z2, new_a_2))
+                c_inp_2 = np.hstack((s, Z2, new_a_2, Z1, new_a_1))
+
+                gradients_1 = session.run(critic_1.critic_gradients, feed_dict={critic_1.inp: c_inp_1,
                                                                                 critic_1.train_length: trace,
                                                                                 critic_1.batch_size: batch,
-                                                                                critic_1.state_in: state_train,
-                                                                                critic_1.p_o: Z2})
-                gradients_2 = session.run(critic_2.critic_gradients, feed_dict={critic_2.f: s,
-                                                                                critic_2.a: new_a_2,
-                                                                                critic_2.p: Z2, 
-                                                                                critic_2.a_o: new_a_1,
+                                                                                critic_1.state_in: state_train})
+                gradients_2 = session.run(critic_2.critic_gradients, feed_dict={critic_2.inp: c_inp_2,
                                                                                 critic_2.train_length: trace,
                                                                                 critic_2.batch_size: batch,
-                                                                                critic_2.state_in: state_train,
-                                                                                critic_2.p_o: Z1})
-                gradients_1 = gradients_1[0]
-                gradients_2 = gradients_2[0]
+                                                                                critic_2.state_in: state_train})
+
+                gradients_1 = np.array(gradients_1)[0, :, 2].reshape(-1, 1)
+                gradients_2 = np.array(gradients_2)[0, :, 2].reshape(-1, 1)
                 
                 # Update the actors
-                session.run(actor_1.upd, feed_dict={actor_1.f: s, 
-                                                    actor_1.p: Z1,
+                session.run(actor_1.upd, feed_dict={actor_1.inp: a_inp_1,
                                                     actor_1.state_in: state_train,
                                                     actor_1.critic_gradient: gradients_1, 
                                                     actor_1.batch_size: batch, 
                                                     actor_1.train_length: trace})
-                session.run(actor_2.upd, feed_dict={actor_2.f: s, 
-                                                    actor_2.p: Z2,
+                session.run(actor_2.upd, feed_dict={actor_2.inp: a_inp_2,
                                                     actor_2.state_in: state_train, 
                                                     actor_2.critic_gradient: gradients_2,
                                                     actor_2.batch_size: batch, 
