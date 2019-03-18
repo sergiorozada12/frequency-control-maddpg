@@ -118,7 +118,7 @@ with tf.Session() as session:
             area.calculate_p_g(Z)
             area.calculate_delta_f()
             new_f = area.get_delta_f()
-            r = rl.get_reward(new_f, generator_1.get_z(), generator_2.get_z(), e_f=.05, e_z=.2)
+            r = rl.get_reward(new_f, generator_1.get_z(), generator_2.get_z(), e_f=.05, e_z=.1, combined=True)
             cum_r += r
 
             # Store the experience and print some data
