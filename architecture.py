@@ -3,10 +3,11 @@ import tensorflow as tf
 
 class Actor:
 
-    def __init__(self, h_size, name):
+    def __init__(self, num_inputs, h_size, name):
         """Constructor of Actor class.
 
             Args:
+                num_inputs (int): Number of the inputs of the actor
                 h_size (int): Size of the LSTM output.
                 name (str): name of the context.
         """
@@ -67,10 +68,11 @@ class Actor:
 
 class Critic:
 
-    def __init__(self, h_size, name):
+    def __init__(self, num_inputs, h_size, name):
         """Constructor of Critic class.
 
             Args:
+                num_inputs (int): Number of the inputs of the critic
                 h_size (int): Size of the LSTM output.
                 name (str): name of the context.
         """
@@ -132,7 +134,7 @@ class Critic:
 
 class Agent:
 
-    def __init__(self, h_size, name):
+    def __init__(self, a_dof, c_dof, h_size, name):
         """Constructor of Agent class. Each agent is composed of the main actor-critic pair and the target actor-critic
         pair. Target architectures help stabilizing the training of the agents.
 
@@ -141,7 +143,7 @@ class Agent:
                         name (str): name of the context.
                 """
 
-        self.actor = Actor(h_size, name+'_actor')
-        self.critic = Critic(h_size, name+'_critic')
-        self.actor_target = Actor(h_size, name+'_actor_target')
-        self.critic_target = Critic(h_size, name+'_critic_target')
+        self.actor = Actor(a_dof, h_size, name+'_actor')
+        self.critic = Critic(c_dof, h_size, name+'_critic')
+        self.actor_target = Actor(a_dof, h_size, name+'_actor_target')
+        self.critic_target = Critic(c_dof, h_size, name+'_critic_target')
