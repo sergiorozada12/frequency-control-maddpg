@@ -53,8 +53,8 @@ def get_new_epsilon(epsilon):
 
     return epsilon*0.999999
 
-
-def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2): #TODO: Implement Self-learning
+  
+def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2, combined=True):
     """" Get reward from two agents.
 
         Args:
@@ -63,17 +63,19 @@ def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2): #TODO: Implement Self-learning
             z2 (float): current control action of agent 2.
             e_f (float): maximum error admitted in frequency dimension.
             e_z (float): maximum error admitted in cost dimension.
+            combined (bool): true if reward relies strictly in both dimensions.
 
         Returns:
             epsilon (float): new epsilon.
     """
-    
-    r = 0
-    
-    if np.abs(delta_f) < e_f:
-        r = 100
-        
-    if np.abs(z1-(z2/2)) < e_z:
-        r += 100
-    
-    return r
+
+    if (not combined) & (np.abs(delta_f) < e_f) & (np.abs(z1-(z2/2)) < e_z):
+        return 200
+
+    elif (not combined) & ((np.abs(delta_f) < e_f) | (np.abs(z1-(z2/2)) < e_z)):
+        return 100
+
+    elif (np.abs(delta_f) < e_f) & (np.abs(z1-(z2/2)) < e_z):
+        return 100
+
+    return 0
