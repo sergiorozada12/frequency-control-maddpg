@@ -9,6 +9,8 @@ import pickle as pck
 
 tf.reset_default_graph()
 h_size = 100
+a_dof = 2
+c_dof = 5
 
 # First agent
 agent_1 = architecture.Agent(h_size, 'agent_1')
@@ -42,7 +44,7 @@ agent_2.critic_target.create_op_holder(agent_2.critic.network_params, tau)
 buffer = rl.ExperienceBuffer(1000)
 
 # Launch the learning
-with tf.Session() as session:
+with tf.Session() as session: #TODO: See state inside the LSTM
     session.run(init)
     
     # Iterate all the episodes
@@ -77,7 +79,11 @@ with tf.Session() as session:
             current_Z_1 = generator_1.get_z()
             current_Z_2 = generator_2.get_z()
             
+            inp_1 = np.array([current_f, current_Z_1]).reshape(1, a_dof)
+            inp_2 = np.array([current_f, current_Z_2]).reshape(1, a_dof)
+            
             # First agent
+
             a_1, new_state_1 = session.run([agent_1.actor.a, agent_1.actor.rnn_state], 
                                            feed_dict={agent_1.actor.f: np.array(current_f).reshape(1, 1),
                                                       agent_1.actor.p: np.array(current_Z_1).reshape(1, 1),
@@ -91,6 +97,7 @@ with tf.Session() as session:
                                                       agent_2.actor.p: np.array(current_Z_2).reshape(1, 1),
                                                       agent_2.actor.state_in: state_2, agent_2.actor.batch_size: 1,
                                                       agent_2.actor.train_length: 1})
+
             a_2 = a_2[0, 0] + epsilon*np.random.normal(0.0, 0.2)
             
             # Take the action, modify environment and get the reward
@@ -127,6 +134,9 @@ with tf.Session() as session:
                 actions_1 = np.reshape(mini_batch[:, 6], [32, 1])
                 actions_2 = np.reshape(mini_batch[:, 7], [32, 1])
                 rewards = np.reshape(mini_batch[:, 8], [32, 1])
+
+                a_inp_1 = np.hstack((s_prime, Z1_prime))
+                a_inp_2 = np.hstack((s_prime, Z2_prime))
 
                 # Predict the actions of both actors
                 a_target_1 = session.run(agent_1.actor_target.a, feed_dict={agent_1.actor_target.f: s_prime, 

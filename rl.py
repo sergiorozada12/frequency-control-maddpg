@@ -53,7 +53,7 @@ def get_new_epsilon(epsilon):
 
     return epsilon*0.999999
 
-
+  
 def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2, combined=True):
     """" Get reward from two agents.
 
@@ -68,6 +68,7 @@ def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2, combined=True):
         Returns:
             epsilon (float): new epsilon.
     """
+
     if (not combined) & (np.abs(delta_f) < e_f) & (np.abs(z1-(z2/2)) < e_z):
         return 200
 

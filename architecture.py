@@ -15,9 +15,7 @@ class Actor:
         self.cell = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
 
         # Input
-        self.f = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-        self.p = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-        self.inp = tf.concat([self.f, self.p], axis=1)
+        self.inp = tf.placeholder(shape=[None, num_inputs], dtype=tf.float32)
         self.initializer = tf.contrib.layers.xavier_initializer()
         
         # LSTM
@@ -81,12 +79,7 @@ class Critic:
         self.cell = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
 
         # Input
-        self.f = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-        self.p = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-        self.p_o = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-        self.a = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-        self.a_o = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-        self.inp = tf.concat([self.f, self.p, self.p_o, self.a, self.a_o], axis=1)
+        self.inp = tf.placeholder(shape=[None, num_inputs], dtype=tf.float32)
         self.initializer = tf.contrib.layers.xavier_initializer()
         
         # LSTM
@@ -126,7 +119,7 @@ class Critic:
         self.upd = self.optimizer.minimize(self.loss)
         
         # Gradients
-        self.critic_gradients = tf.gradients(self.q, self.a)
+        self.critic_gradients = tf.gradients(self.q, self.inp)
 
         self.update_parameters = []
 
