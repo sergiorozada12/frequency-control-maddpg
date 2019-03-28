@@ -3,15 +3,16 @@ import tensorflow as tf
 
 class Actor:
 
-    def __init__(self, h_size, cell, name, num_variables):
+    def __init__(self, h_size, name):
         """Constructor of Actor class.
 
             Args:
                 h_size (int): Size of the LSTM output.
-                cell: LSTM cell for the network.
                 name (str): name of the context.
-                num_variables (int): number of parameters of the network.
         """
+
+        self.num_variables = 10
+        self.cell = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
 
         # Input
         self.f = tf.placeholder(shape=[None, 1], dtype=tf.float32)
@@ -24,8 +25,8 @@ class Actor:
         self.train_length = tf.placeholder(dtype=tf.int32)
         self.rnn_inp = tf.reshape(self.inp, [self.batch_size, self.train_length, 2])
         
-        self.state_in = cell.zero_state(self.batch_size, tf.float32)
-        self.rnn, self.rnn_state = tf.nn.dynamic_rnn(inputs=self.rnn_inp, cell=cell,
+        self.state_in = self.cell.zero_state(self.batch_size, tf.float32)
+        self.rnn, self.rnn_state = tf.nn.dynamic_rnn(inputs=self.rnn_inp, cell=self.cell,
                                                      dtype=tf.float32, initial_state=self.state_in, scope=name+'_rnn')
         self.rnn = tf.reshape(self.rnn, shape=[-1, h_size])
         
@@ -48,7 +49,7 @@ class Actor:
         self.a = tf.multiply(self.a_unscaled, 0.1)
 
         # Gradients
-        self.network_params = tf.trainable_variables()[num_variables:]
+        self.network_params = tf.trainable_variables()[-self.num_variables:]
         self.critic_gradient = tf.placeholder(tf.float32, [None, 1])
         self.unnormalized_actor_gradients = tf.gradients(self.a, self.network_params, - self.critic_gradient)
         self.actor_gradients = list(map(lambda x: tf.div(x, 32), self.unnormalized_actor_gradients))
@@ -68,15 +69,16 @@ class Actor:
 
 class Critic:
 
-    def __init__(self, h_size, cell, name, num_variables):
+    def __init__(self, h_size, name):
         """Constructor of Critic class.
 
             Args:
                 h_size (int): Size of the LSTM output.
-                cell: LSTM cell for the network.
                 name (str): name of the context.
-                num_variables (int): number of parameters of the network.
         """
+
+        self.num_variables = 10
+        self.cell = tf.contrib.rnn.BasicLSTMCell(num_units=h_size, state_is_tuple=True)
 
         # Input
         self.f = tf.placeholder(shape=[None, 1], dtype=tf.float32)
@@ -92,8 +94,8 @@ class Critic:
         self.train_length = tf.placeholder(dtype=tf.int32)
         self.rnn_inp = tf.reshape(self.inp, [self.batch_size, self.train_length, 5])
         
-        self.state_in = cell.zero_state(self.batch_size, tf.float32)
-        self.rnn, self.rnn_state = tf.nn.dynamic_rnn(inputs=self.rnn_inp, cell=cell,
+        self.state_in = self.cell.zero_state(self.batch_size, tf.float32)
+        self.rnn, self.rnn_state = tf.nn.dynamic_rnn(inputs=self.rnn_inp, cell=self.cell,
                                                      dtype=tf.float32, initial_state=self.state_in, scope=name+'_rnn')
         self.rnn = tf.reshape(self.rnn, shape=[-1, h_size])
         
@@ -115,7 +117,7 @@ class Critic:
         self.q = tf.matmul(self.h3, self.W4)+self.b4
         
         # Gradients
-        self.network_params = tf.trainable_variables()[num_variables:]
+        self.network_params = tf.trainable_variables()[-self.num_variables:]
         self.target_q = tf.placeholder(tf.float32, [None, 1])
         
         # Optimization
@@ -133,3 +135,20 @@ class Critic:
         self.update_parameters = [self.network_params[i].assign(tf.multiply(params[i], tau) +
                                                                 tf.multiply(self.network_params[i], 1. - tau))
                                   for i in range(len(self.network_params))]
+
+
+class Agent:
+
+    def __init__(self, h_size, name):
+        """Constructor of Agent class. Each agent is composed of the main actor-critic pair and the target actor-critic
+        pair. Target architectures help stabilizing the training of the agents.
+
+                    Args:
+                        h_size (int): Size of the LSTM output.
+                        name (str): name of the context.
+                """
+
+        self.actor = Actor(h_size, name+'_actor')
+        self.critic = Critic(h_size, name+'_critic')
+        self.actor_target = Actor(h_size, name+'_actor_target')
+        self.critic_target = Critic(h_size, name+'_critic_target')
