@@ -20,11 +20,11 @@ class Node:
     def modify_z(self, delta_z):
         self.z += delta_z
         
-        if self.z < 0.5:
-            self.z = 0.5
+        if self.z < 0.0:
+            self.z = 0.0
             
-        if self.z > 5:
-            self.z = 5
+        if self.z > 10.0:
+            self.z = 10.0
         
     def get_z(self):
         return self.z

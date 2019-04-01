@@ -7,45 +7,40 @@ import pickle as pck
 
 """ MODEL DEFINITION"""
 
+# Parameters
+gamma = 0.9
+tau = 0.001
+epsilon = 0.99
+episodes = 20000
+steps = 100
+cum_r = 0
+trace = 8
+batch = 4
+n_var = 9
+buffer_size = 1000
+p_tot = 0
+cum_r_list = []
+
 tf.reset_default_graph()
 h_size = 100
 a_dof = 2
 c_dof = 5
 
 # First agent
-agent_1 = architecture.Agent(a_dof, c_dof, h_size, 'agent_1')
-agent_2 = architecture.Agent(a_dof, c_dof, h_size, 'agent_2')
-
-# Instantiate the model to initialize the variables
-init = tf.global_variables_initializer()
-
+agent_1 = architecture.Agent(a_dof, c_dof, h_size, 'agent_1', batch, trace, tau)
+agent_2 = architecture.Agent(a_dof, c_dof, h_size, 'agent_2', batch, trace, tau)
 
 """ MODEL TRAINING"""
 
-# Parameters
-gamma = 0.9
-tau = 0.001
-epsilon = 0.99
-episodes = 10000
-steps = 100
-cum_r = 0
-trace = 8
-batch = 4
-n_var = 9
-cum_r_list = []
-
-# Utils
-agent_1.actor_target.create_op_holder(agent_1.actor.network_params, tau)
-agent_1.critic_target.create_op_holder(agent_1.critic.network_params, tau)
-
-agent_2.actor_target.create_op_holder(agent_2.actor.network_params, tau)
-agent_2.critic_target.create_op_holder(agent_2.critic.network_params, tau)
-
-buffer = rl.ExperienceBuffer(1000)
+buffer = rl.PERBuffer(buffer_size, n_var)
 
 # Launch the learning
-with tf.Session() as session: #TODO: See state inside the LSTM
-    session.run(init)
+with tf.Session() as sess:
+
+    sess.run(tf.global_variables_initializer())
+
+    agent_1.initialize_targets(sess)
+    agent_2.initialize_targets(sess)
     
     # Iterate all the episodes
     for i in range(episodes):
@@ -59,8 +54,8 @@ with tf.Session() as session: #TODO: See state inside the LSTM
         episode_buffer = []
         
         # Instances of the environment
-        generator_1 = dn.Node(1.5, alpha=2)
-        generator_2 = dn.Node(1.5, alpha=1)
+        gen_1 = dn.Node(1.5, alpha=2)
+        gen_2 = dn.Node(1.5, alpha=1)
         
         area = dn.Area(f_set_point=50, m=0.1, d=0.0160, t_g=30, r_d=0.1)
         area.set_load(3.0 + (- 0.25 + np.random.rand()/2))
@@ -68,185 +63,127 @@ with tf.Session() as session: #TODO: See state inside the LSTM
         area.calculate_delta_f()
         
         # Initial state for the LSTM
-        state_1 = (np.zeros([1, h_size]), np.zeros([1, h_size]))
-        state_2 = (np.zeros([1, h_size]), np.zeros([1, h_size]))
+        st_1 = (np.zeros([1, h_size]), np.zeros([1, h_size]))
+        st_2 = (np.zeros([1, h_size]), np.zeros([1, h_size]))
+
+        # Initial importance at the beginning of the episode
+        p = 0
         
         # Iterate all over the steps
         for j in range(steps):
             
             # Get the action from the actor and the internal state of the rnn
-            current_f = area.get_delta_f()
-            current_Z_1 = generator_1.get_z()
-            current_Z_2 = generator_2.get_z()
-            
-            inp_1 = np.array([current_f, current_Z_1]).reshape(1, a_dof)
-            inp_2 = np.array([current_f, current_Z_2]).reshape(1, a_dof)
+            curr_f = area.get_delta_f()
+            curr_Z_1 = gen_1.get_z()
+            curr_Z_2 = gen_2.get_z()
             
             # First agent
-
-            a_1, new_state_1 = session.run([agent_1.actor.a, agent_1.actor.rnn_state], 
-                                           feed_dict={agent_1.actor.inp: inp_1,
-                                                      agent_1.actor.state_in: state_1,
-                                                      agent_1.actor.batch_size: 1,
-                                                      agent_1.actor.train_length: 1})
-            a_1 = a_1[0, 0] + epsilon*np.random.normal(0.0, 0.2)
+            a_1, new_st_1 = agent_1.a_actor_operation(sess, np.array([curr_f, curr_Z_1]).reshape(1, a_dof), st_1)
+            a_1 = a_1[0, 0] + epsilon*np.random.normal(0.0, 1.0)
             
             # Second agent
-            a_2, new_state_2 = session.run([agent_2.actor.a, agent_2.actor.rnn_state], 
-                                           feed_dict={agent_2.actor.inp: inp_2,
-                                                      agent_2.actor.state_in: state_2,
-                                                      agent_2.actor.batch_size: 1,
-                                                      agent_2.actor.train_length: 1})
-
-            a_2 = a_2[0, 0] + epsilon*np.random.normal(0.0, 0.2)
+            a_2, new_st_2 = agent_2.a_actor_operation(sess, np.array([curr_f, curr_Z_2]).reshape(1, a_dof), st_2)
+            a_2 = a_2[0, 0] + epsilon*np.random.normal(0.0, 1.0)
             
             # Take the action, modify environment and get the reward
-            generator_1.modify_z(a_1)
-            generator_2.modify_z(a_2)
-            Z = generator_1.get_z() + generator_2.get_z()
+            gen_1.modify_z(a_1)
+            gen_2.modify_z(a_2)
+            Z = gen_1.get_z() + gen_2.get_z()
             area.calculate_p_g(Z)
             area.calculate_delta_f()
             new_f = area.get_delta_f()
-            r = rl.get_reward(new_f, generator_1.get_z(), generator_2.get_z(), e_f=.05, e_z=.1, combined=True)
+            r = rl.get_reward(new_f, gen_1.get_z(), gen_2.get_z(), e_f=.1, e_z=.2, combined=False)
             cum_r += r
 
+            # PER
+            a_1_n, _ = agent_1.a_actor_operation(sess, np.array([new_f, gen_1.get_z()]).reshape(1, a_dof), new_st_1)
+            a_2_n, _ = agent_2.a_actor_operation(sess, np.array([new_f, gen_2.get_z()]).reshape(1, a_dof), new_st_2)
+
+            p_1 = agent_1.importance(sess,
+                                     np.array([curr_f, curr_Z_1, a_1, curr_Z_2, a_2]).reshape(1, c_dof),
+                                     np.array([new_f, gen_1.get_z(), a_1_n[0, 0], 
+                                               gen_2.get_z(), a_2_n[0, 0]]).reshape(1, c_dof),
+                                     r, gamma, st_1, new_st_1)
+
+            p_2 = agent_2.importance(sess,
+                                     np.array([curr_f, curr_Z_2, a_2, curr_Z_1, a_1]).reshape(1, c_dof),
+                                     np.array([new_f, gen_2.get_z(), a_2_n[0, 0], 
+                                               gen_1.get_z(), a_1_n[0, 0]]).reshape(1, c_dof),
+                                     r, gamma, st_2, new_st_2)
+
+            p += p_1 + p_2
+            p_tot += p_1 + p_2
+
             # Store the experience and print some data
-            experience = np.array([current_f, current_Z_1, current_Z_2, generator_1.get_z(), generator_2.get_z(),
-                                   new_f, a_1, a_2, r])
+            experience = np.array([curr_f, curr_Z_1, curr_Z_2, gen_1.get_z(), gen_2.get_z(), new_f, a_1, a_2, r])
             episode_buffer.append(experience)
-            print("Delta f: ", round(current_f, 2), " P1: ", current_Z_1,
-                  " P2: ", current_Z_2, " Reward: ", r)
+            print("Delta f: {:+04.2f}  Z1: {:03.2f}  Z2: {:03.2f}  Reward: {:03d}  Epsilon: {:05.4f}  p: {:06.1f}"
+                  .format(curr_f, curr_Z_1, curr_Z_2, r, epsilon, p), "   ", sess.run(agent_1.critic.b4))
             
             # Update the model each 4 steps with a mini_batch of 32
-            if ((j % 4) == 0) & (i > 0) & (len(buffer.buffer) > 0):
+            if ((j % 4) == 0) & (i > 0) & (i > 100):
                 
                 # Sample the mini_batch
-                mini_batch = buffer.sample(batch, trace, n_var)
+                mini_batch = buffer.sample(batch, trace, p_tot)
                 
                 # Reset the recurrent layer's hidden state and get states
-                state_train = (np.zeros([batch, h_size]), np.zeros([batch, h_size]))
                 s = np.reshape(mini_batch[:, 0], [32, 1])
                 Z1 = np.reshape(mini_batch[:, 1], [32, 1])
                 Z2 = np.reshape(mini_batch[:, 2], [32, 1])
-                Z1_prime = np.reshape(mini_batch[:, 3], [32, 1])
-                Z2_prime = np.reshape(mini_batch[:, 4], [32, 1])
-                s_prime = np.reshape(mini_batch[:, 5], [32, 1])
-                actions_1 = np.reshape(mini_batch[:, 6], [32, 1])
-                actions_2 = np.reshape(mini_batch[:, 7], [32, 1])
-                rewards = np.reshape(mini_batch[:, 8], [32, 1])
-
-                a_inp_1 = np.hstack((s_prime, Z1_prime))
-                a_inp_2 = np.hstack((s_prime, Z2_prime))
+                Z1_p = np.reshape(mini_batch[:, 3], [32, 1])
+                Z2_p = np.reshape(mini_batch[:, 4], [32, 1])
+                s_p = np.reshape(mini_batch[:, 5], [32, 1])
+                a_1 = np.reshape(mini_batch[:, 6], [32, 1])
+                a_2 = np.reshape(mini_batch[:, 7], [32, 1])
+                rws = np.reshape(mini_batch[:, 8], [32, 1])
 
                 # Predict the actions of both actors
-                a_target_1 = session.run(agent_1.actor_target.a, feed_dict={agent_1.actor_target.inp: a_inp_1,
-                                                                            agent_1.actor_target.state_in: state_train,
-                                                                            agent_1.actor_target.batch_size: batch,
-                                                                            agent_1.actor_target.train_length: trace})
-                a_target_2 = session.run(agent_2.actor_target.a, feed_dict={agent_2.actor_target.inp: a_inp_2,
-                                                                            agent_2.actor_target.state_in: state_train,
-                                                                            agent_2.actor_target.batch_size: batch,
-                                                                            agent_2.actor_target.train_length: trace})
-
-                c_inp_1 = np.hstack((s_prime, Z1_prime, a_target_1, Z2_prime, a_target_2))
-                c_inp_2 = np.hstack((s_prime, Z2_prime, a_target_2, Z1_prime, a_target_1))
+                a_t_1 = agent_1.a_target_actor_training(sess, np.hstack((s_p, Z1_p)))
+                a_t_2 = agent_2.a_target_actor_training(sess, np.hstack((s_p, Z2_p)))
                 
                 # Predict Q of the critics
-                Q_t_1 = session.run(agent_1.critic_target.q, feed_dict={agent_1.critic_target.inp: c_inp_1,
-                                                                        agent_1.critic_target.train_length: trace,
-                                                                        agent_1.critic_target.batch_size: batch,
-                                                                        agent_1.critic_target.state_in: state_train})
-                Q_t_2 = session.run(agent_2.critic_target.q, feed_dict={agent_2.critic_target.inp: c_inp_2,
-                                                                        agent_2.critic_target.train_length: trace,
-                                                                        agent_2.critic_target.batch_size: batch,
-                                                                        agent_2.critic_target.state_in: state_train})
-                Q_target_1 = rewards + gamma*Q_t_1
-                Q_target_2 = rewards + gamma*Q_t_2
-
-                c_inp_1 = np.hstack((s, Z1, actions_1, Z2, actions_2))
-                c_inp_2 = np.hstack((s, Z2, actions_2, Z1, actions_1))
+                Q_target_1 = rws + gamma*agent_1.q_target_critic(sess, np.hstack((s_p, Z1_p, a_t_1, Z2_p, a_t_2)))
+                Q_target_2 = rws + gamma*agent_2.q_target_critic(sess, np.hstack((s_p, Z2_p, a_t_2, Z1_p, a_t_1)))
 
                 # Update the critic networks with the new Q's
-                session.run(agent_1.critic.upd, feed_dict={agent_1.critic.inp: c_inp_1,
-                                                           agent_1.critic.target_q: Q_target_1,
-                                                           agent_1.critic.train_length: trace,
-                                                           agent_1.critic.batch_size: batch,
-                                                           agent_1.critic.state_in: state_train})
-                session.run(agent_2.critic.upd, feed_dict={agent_2.critic.inp: c_inp_2,
-                                                           agent_2.critic.target_q: Q_target_2,
-                                                           agent_2.critic.train_length: trace,
-                                                           agent_2.critic.batch_size: batch,
-                                                           agent_2.critic.state_in: state_train})
-
-                a_inp_1 = np.hstack((s, Z1))
-                a_inp_2 = np.hstack((s, Z2))
+                agent_1.update_critic(sess, np.hstack((s, Z1, a_1, Z2, a_2)), Q_target_1)
+                agent_2.update_critic(sess, np.hstack((s, Z2, a_2, Z1, a_1)), Q_target_2)
 
                 # Sample the new actions
-                new_a_1 = session.run(agent_1.actor.a, feed_dict={agent_1.actor.inp: a_inp_1,
-                                                                  agent_1.actor.state_in: state_train,
-                                                                  agent_1.actor.batch_size: batch,
-                                                                  agent_1.actor.train_length: trace})
-                new_a_2 = session.run(agent_2.actor.a, feed_dict={agent_2.actor.inp: a_inp_2,
-                                                                  agent_2.actor.state_in: state_train,
-                                                                  agent_2.actor.batch_size: batch,
-                                                                  agent_2.actor.train_length: trace})
-
-                c_inp_1 = np.hstack((s, Z1, new_a_1, Z2, new_a_2))
-                c_inp_2 = np.hstack((s, Z2, new_a_2, Z1, new_a_1))
+                nw_a1 = agent_1.a_actor_training(sess, np.hstack((s, Z1)))
+                nw_a2 = agent_2.a_actor_training(sess, np.hstack((s, Z2)))
                 
                 # Calculate the gradients
-                grads_1 = session.run(agent_1.critic.critic_gradients, feed_dict={agent_1.critic.inp: c_inp_1,
-                                                                                  agent_1.critic.train_length: trace,
-                                                                                  agent_1.critic.batch_size: batch,
-                                                                                  agent_1.critic.state_in: state_train})
-                grads_2 = session.run(agent_2.critic.critic_gradients, feed_dict={agent_2.critic.inp: c_inp_2,
-                                                                                  agent_2.critic.train_length: trace,
-                                                                                  agent_2.critic.batch_size: batch,
-                                                                                  agent_2.critic.state_in: state_train})
-                gradients_1 = grads_1[0][:, 2].reshape(-1, 1)
-                gradients_2 = grads_2[0][:, 2].reshape(-1, 1)
+                grds_1 = agent_1.gradients_critic(sess, np.hstack((s, Z1, nw_a1, Z2, nw_a2)))[0][:, 2].reshape(-1, 1)
+                grds_2 = agent_2.gradients_critic(sess, np.hstack((s, Z2, nw_a2, Z1, nw_a1)))[0][:, 2].reshape(-1, 1)
 
-                a_inp_1 = np.hstack((s, Z1))
-                a_inp_2 = np.hstack((s, Z2))
-                
                 # Update the actors
-                session.run(agent_1.actor.upd, feed_dict={agent_1.actor.inp: a_inp_1,
-                                                          agent_1.actor.state_in: state_train,
-                                                          agent_1.actor.critic_gradient: gradients_1,
-                                                          agent_1.actor.batch_size: batch,
-                                                          agent_1.actor.train_length: trace})
-                session.run(agent_2.actor.upd, feed_dict={agent_2.actor.inp: a_inp_2,
-                                                          agent_2.actor.state_in: state_train,
-                                                          agent_2.actor.critic_gradient: gradients_2,
-                                                          agent_2.actor.batch_size: batch,
-                                                          agent_2.actor.train_length: trace})
+                agent_1.update_actor(sess, np.hstack((s, Z1)), grds_1)
+                agent_2.update_actor(sess, np.hstack((s, Z2)), grds_2)
 
                 # Update target network parameters
-                session.run(agent_1.actor_target.update_parameters)
-                session.run(agent_1.critic_target.update_parameters)
-                session.run(agent_2.actor_target.update_parameters)
-                session.run(agent_2.critic_target.update_parameters)
+                agent_1.update_targets(sess)
+                agent_2.update_targets(sess)
             
             # Update the state
-            state_1 = new_state_1
-            state_2 = new_state_2
+            st_1 = new_st_1
+            st_2 = new_st_2
             
             # Update epsilon
             epsilon = rl.get_new_epsilon(epsilon)
             
             # End episode if delta f is too large
-            if np.abs(area.get_delta_f()) > 50:
+            if np.abs(area.get_delta_f()) > 5.0:
                 break
             
         # Append episode to the buffer
         if len(episode_buffer) >= 8:
             episode_buffer = np.array(episode_buffer)
-            if np.count_nonzero(episode_buffer[:, -1]) > 0:
-                buffer.add(episode_buffer)
+            buffer.add(episode_buffer, p)
             
     """ SAVE THE DATA"""
 
     saver = tf.train.Saver()
-    saver.save(session, "model/model")
+    saver.save(sess, "model/model")
     with open("reward.pickle", "wb") as handle:
         pck.dump(cum_r_list, handle, protocol=pck.HIGHEST_PROTOCOL)
