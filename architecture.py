@@ -23,7 +23,7 @@ class Actor:
         # LSTM
         self.batch_size = tf.placeholder(dtype=tf.int32, shape=[])
         self.train_length = tf.placeholder(dtype=tf.int32)
-        self.rnn_inp = tf.reshape(self.inp, [self.batch_size, self.train_length, 2])
+        self.rnn_inp = tf.reshape(self.inp, [self.batch_size, self.train_length, num_inputs])
         
         self.state_in = self.cell.zero_state(self.batch_size, tf.float32)
         self.rnn, self.rnn_state = tf.nn.dynamic_rnn(inputs=self.rnn_inp, cell=self.cell,
@@ -33,20 +33,20 @@ class Actor:
         # MLP
         self.b1 = tf.Variable(self.initializer([1, 1000]))
         self.W1 = tf.Variable(self.initializer([h_size, 1000]))
-        self.h1 = tf.nn.relu(tf.matmul(self.rnn, self.W1)+self.b1)
+        self.h1 = tf.nn.relu(tf.matmul(self.rnn, self.W1) + self.b1)
 
         self.b2 = tf.Variable(self.initializer([1, 100]))
         self.W2 = tf.Variable(self.initializer([1000, 100]))
-        self.h2 = tf.nn.relu(tf.matmul(self.h1, self.W2)+self.b2)
+        self.h2 = tf.nn.relu(tf.matmul(self.h1, self.W2) + self.b2)
 
         self.b3 = tf.Variable(self.initializer([1, 50]))
         self.W3 = tf.Variable(self.initializer([100, 50]))
-        self.h3 = tf.nn.relu(tf.matmul(self.h2, self.W3)+self.b3)
+        self.h3 = tf.nn.relu(tf.matmul(self.h2, self.W3) + self.b3)
 
         self.b4 = tf.Variable(self.initializer([1, 1]))
         self.W4 = tf.Variable(self.initializer([50, 1]))
         self.a_unscaled = tf.nn.tanh(tf.matmul(self.h3, self.W4)+self.b4)
-        self.a = tf.multiply(self.a_unscaled, 0.1)
+        self.a = tf.multiply(self.a_unscaled, .1)
 
         # Gradients
         self.network_params = tf.trainable_variables()[-self.num_variables:]
@@ -88,7 +88,7 @@ class Critic:
         # LSTM
         self.batch_size = tf.placeholder(dtype=tf.int32, shape=[])
         self.train_length = tf.placeholder(dtype=tf.int32)
-        self.rnn_inp = tf.reshape(self.inp, [self.batch_size, self.train_length, 5])
+        self.rnn_inp = tf.reshape(self.inp, [self.batch_size, self.train_length, num_inputs])
         
         self.state_in = self.cell.zero_state(self.batch_size, tf.float32)
         self.rnn, self.rnn_state = tf.nn.dynamic_rnn(inputs=self.rnn_inp, cell=self.cell,
@@ -98,19 +98,19 @@ class Critic:
         # MLP
         self.b1 = tf.Variable(self.initializer([1, 1000]))
         self.W1 = tf.Variable(self.initializer([h_size, 1000]))
-        self.h1 = tf.nn.relu(tf.matmul(self.rnn, self.W1)+self.b1)
+        self.h1 = tf.nn.relu(tf.matmul(self.rnn, self.W1) + self.b1)
 
         self.b2 = tf.Variable(self.initializer([1, 100]))
         self.W2 = tf.Variable(self.initializer([1000, 100]))
-        self.h2 = tf.nn.relu(tf.matmul(self.h1, self.W2)+self.b2)
+        self.h2 = tf.nn.relu(tf.matmul(self.h1, self.W2) + self.b2)
 
         self.b3 = tf.Variable(self.initializer([1, 50]))
         self.W3 = tf.Variable(self.initializer([100, 50]))
-        self.h3 = tf.nn.relu(tf.matmul(self.h2, self.W3)+self.b3)
+        self.h3 = tf.nn.relu(tf.matmul(self.h2, self.W3) + self.b3)
 
         self.b4 = tf.Variable(self.initializer([1, 1]))
         self.W4 = tf.Variable(self.initializer([50, 1]))
-        self.q = tf.matmul(self.h3, self.W4)+self.b4
+        self.q = tf.matmul(self.h3, self.W4) + self.b4
         
         # Gradients
         self.network_params = tf.trainable_variables()[-self.num_variables:]
