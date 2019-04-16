@@ -46,7 +46,7 @@ class Actor:
         self.b4 = tf.Variable(self.initializer([1, 1]))
         self.W4 = tf.Variable(self.initializer([50, 1]))
         self.a_unscaled = tf.nn.tanh(tf.matmul(self.h3, self.W4)+self.b4)
-        self.a = tf.multiply(self.a_unscaled, .1)
+        self.a = tf.multiply(self.a_unscaled, .05)
 
         # Gradients
         self.network_params = tf.trainable_variables()[-self.num_variables:]

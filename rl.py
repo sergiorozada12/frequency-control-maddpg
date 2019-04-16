@@ -9,15 +9,21 @@ class ExperienceBuffer:
             sample: Sample a group of elements from the buffer.
     """
 
-    def __init__(self, buffer_size):
+    def __init__(self, buffer_size, batch_size, trace_length, n_var):
         """Constructor of Node class.
 
             Args:
                 buffer_size (int): Size of the buffer.
+                batch_size (int): Size of the batch to train
+                trace_length (int): Size of the trace used to feed the LSTM
+                n_var (int): Number of variables per experience
         """
 
         self.buffer = []
         self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.trace_length = trace_length
+        self.n_var = n_var
     
     def add(self, experience):
 
@@ -26,17 +32,17 @@ class ExperienceBuffer:
 
         self.buffer.append(experience)
             
-    def sample(self, batch_size, trace_length, n_var):
+    def sample(self):
 
-        index = np.random.choice(np.arange(len(self.buffer)), batch_size)
+        index = np.random.choice(np.arange(len(self.buffer)), self.batch_size)
         sampled_episodes = [self.buffer[i] for i in index]
         sampled_traces = []
 
         for episode in sampled_episodes:
-            point = np.random.randint(0, episode.shape[0]+1-trace_length)
-            sampled_traces.append(episode[point:point+trace_length, :])
+            point = np.random.randint(0, episode.shape[0]+1-self.trace_length)
+            sampled_traces.append(episode[point:point+self.trace_length, :])
 
-        return np.reshape(np.array(sampled_traces), [-1, n_var])
+        return np.reshape(np.array(sampled_traces), [-1, self.n_var])
 
 
 def get_new_epsilon(epsilon):

@@ -1,11 +1,12 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import matplotlib
 import architecture
 import numpy as np
 import dynamics as dn
 import pickle as pck
 
-with open("two_gens_reward.pickle", "rb") as handle:
+with open("rewards/two_gens_reward.pickle", "rb") as handle:
     reward = pck.load(handle)
 
 generator_1 = dn.Generator(1.5, alpha=2)
@@ -34,7 +35,6 @@ batch = 4
 tau = 1
 n_vars = 10
 arch_per_agent = 4
-norm = .2
 
 with tf.Session() as sess:
     
@@ -67,8 +67,8 @@ with tf.Session() as sess:
         curr_Z_1 = generator_1.get_z()
         curr_Z_2 = generator_2.get_z()
 
-        a_1, new_st_1 = agent_1.a_actor_operation(sess, np.array([curr_f, norm * curr_Z_1]).reshape(1, a_dof), st_1)
-        a_2, new_st_2 = agent_2.a_actor_operation(sess, np.array([curr_f, norm * curr_Z_2]).reshape(1, a_dof), st_2)
+        a_1, new_st_1 = agent_1.a_actor_operation(sess, np.array([curr_f, curr_Z_1]).reshape(1, a_dof), st_1)
+        a_2, new_st_2 = agent_2.a_actor_operation(sess, np.array([curr_f, curr_Z_2]).reshape(1, a_dof), st_2)
         
         a_1 = a_1[0, 0]
         a_2 = a_2[0, 0]
@@ -81,14 +81,44 @@ with tf.Session() as sess:
 
         st_1 = new_st_1
         st_2 = new_st_2
-        
-plt.figure(1)
-plt.scatter(np.arange(len(reward)), reward)
-plt.xlabel('Episodes')
-plt.ylabel('Cum. reward per episode')
+
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams["font.size"] = 14
+plt.rcParams["font.weight"] = 'light'
+
+del matplotlib.font_manager.weight_dict['roman']
+matplotlib.font_manager._rebuild()
+
+fig1, ax1 = plt.subplots()
+ax1.scatter(np.arange(len(reward)), reward)
+ax1.set_xlabel('episodes')
+ax1.set_ylabel('cumulative reward [pu]')
+ax1.set_xlim(0, 20000)
+ax1.set_ylim(0, 22500)
+ax1.axhline(20000, c='y')
+ax1.ticklabel_format(axis='both', style='sci', scilimits=(-2, 2))
+plt.grid(True)
 plt.show()
 
-plt.figure(2)
+n = 100
+mu = np.array([np.mean(reward[i:i+n]) for i in range(len(reward)-n)])
+std = np.array([np.std(reward[i:i+n]) for i in range(len(reward)-n)])
+upper_bound = mu + np.multiply(std, 1.96/np.sqrt(n))
+lower_bound = mu - np.multiply(std, 1.96/np.sqrt(n))
+
+fig2, ax2 = plt.subplots()
+ax2.plot(np.arange(len(mu)), mu, c='k')
+ax2.fill_between(np.arange(len(upper_bound)), lower_bound, upper_bound, alpha=.2)
+ax2.set_xlabel('episodes')
+ax2.set_ylabel('cumulative reward [pu]')
+ax2.set_xlim(0, 20000)
+ax2.set_ylim(0, 22500)
+ax2.axhline(20000, c='y')
+ax2.ticklabel_format(axis='both', style='sci', scilimits=(-2, 2))
+plt.grid(True)
+plt.show()
+
+plt.figure()
 plt.plot(ps)
 plt.plot([3.15]*100)
 plt.xlabel('Steps')
@@ -96,7 +126,7 @@ plt.ylabel('Power (MW)')
 plt.legend(['Total power', 'Power set point'])
 plt.show()
 
-plt.figure(3)
+plt.figure()
 plt.plot(z_1)
 plt.plot(z_2)
 plt.plot(np.sum([np.array(z_1), np.array(z_2)], axis=0))
@@ -105,7 +135,7 @@ plt.ylabel('Control action (Z)')
 plt.legend(['Gen 1 secondary action', 'Gen 2 secondary action', 'Total secondary action'])
 plt.show()
 
-plt.figure(5)
+plt.figure()
 plt.plot(fs)
 plt.plot([50]*100)
 plt.xlabel('Steps')
@@ -113,13 +143,13 @@ plt.ylabel('Frequency (Hz)')
 plt.legend(['System frequency', 'Frequency set point'])
 plt.show()
 
-plt.figure(6)
+plt.figure()
 plt.plot(dw)
 plt.xlabel('Steps')
 plt.ylabel('dw')
 plt.show()
 
-plt.figure(7)
+plt.figure()
 z_1_cost = [generator_1.alpha*(x**2) for x in z_1]
 z_2_cost = [generator_2.alpha*(x**2) for x in z_2]
 plt.plot(z_1_cost)
