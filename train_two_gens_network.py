@@ -116,7 +116,7 @@ with tf.Session() as sess:
             new_f_1 = network_node_1.get_delta_f()
             new_f_2 = network_node_2.get_delta_f()
 
-            r = rl.get_network_reward([network_node_1, network_node_2], e_f=.1)
+            r = rl.get_network_reward([network_node_1, network_node_2], [gen_1, gen_2], e_f=.1, e_z=.1)
             cum_r += r
 
             # Store the experience and print some data

@@ -85,9 +85,11 @@ def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2):
     return 0
 
 
-def get_network_reward(nodes, e_f=.1):
+def get_network_reward(nodes, gen, e_f=.1, e_z=.1):
 
-    return sum([100 if np.abs(node.get_delta_f()) < e_f else 0 for node in nodes])
+    f_reward = sum([100 if np.abs(node.get_delta_f()) < e_f else 0 for node in nodes])
+    z_reward = 200 if np.abs(gen[0].get_z() - gen[1].get_z()/2) < e_z else 0
+    return f_reward + z_reward
 
 
 class SumTree:
