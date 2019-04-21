@@ -3,10 +3,9 @@ import rl
 import tensorflow as tf
 import numpy as np
 import architecture
-import matplotlib.pyplot as plt
 import pickle as pck
 
-""" MODEL DEFINITION"""
+"""MODEL DEFINITION"""
 
 # Parameters
 gamma = 0.9
@@ -30,7 +29,7 @@ c_dof = 5
 agent_1 = architecture.Agent(a_dof, c_dof, h_size, 'agent_1', batch, trace, tau)
 agent_2 = architecture.Agent(a_dof, c_dof, h_size, 'agent_2', batch, trace, tau)
 
-""" MODEL TRAINING"""
+"""MODEL TRAINING"""
 
 buffer = rl.ExperienceBuffer(buffer_size, batch, trace, n_var)
 
@@ -41,21 +40,10 @@ with tf.Session() as sess:
 
     agent_1.initialize_targets(sess)
     agent_2.initialize_targets(sess)
-
-    #plt.figure()
-    #plt.xlabel("Episodes")
-    #plt.ylabel("Cummulative reward")
-    #plt.xlim(0, 20000)
-    #plt.ylim(0, 20000)
     
     # Iterate all the episodes
     for i in range(episodes):
         print("\nEPISODE: ", i)
-
-        # Plot cumulative reward
-        #plt.scatter(i, cum_r, c='y', alpha=.4)
-        #plt.show(block=False)
-        #plt.pause(.0001)
         
         # Store cumulative reward per episode
         cum_r_list.append(cum_r)
@@ -183,7 +171,7 @@ a2: {:+04.2f}   Q1: {:+05.1f}  Q2: {:+05.1f}"
             episode_buffer = np.array(episode_buffer)
             buffer.add(episode_buffer)
             
-    """ SAVE THE DATA"""
+    """SAVE THE DATA"""
 
     saver = tf.train.Saver()
     saver.save(sess, "model/model_two_gens")
