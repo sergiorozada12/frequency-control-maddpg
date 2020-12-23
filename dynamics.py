@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class Generator:
     """ Implements each generation/load node
 
@@ -68,6 +71,20 @@ class Area:
         self.p_l = 0
         self.p_g = 0
         self.delta_f = 0
+
+        # This section corresponds to a Wiener generator, not always used
+        self.A = np.array([[-0.002, 0.01],
+                           [0, -0.5]])
+
+        self.B = np.array([[0],
+                           [-0.4]])
+
+        self.dt = 1
+
+        self.st = np.array([[0.5],
+                            [0.0]])
+
+        self.p_wiener = []
         
     def set_load(self, p_l):
         self.p_l = p_l
@@ -75,8 +92,14 @@ class Area:
     def set_generation(self, p_g):
         self.p_g = p_g
     
-    def calculate_delta_f(self):
-        self.delta_f += (self.p_g - self.p_l - self.d*self.delta_f)/self.m
+    def calculate_delta_f(self, wiener=False):
+        if wiener:
+            self.st = self.st + self.dt * self.A @ self.st + self.dt * self.B * np.random.randn()
+            self.p_wiener.append(self.st[0, 0])
+            self.delta_f += (self.p_g - (self.p_l - self.st[0, 0]) - self.d * self.delta_f) / self.m
+
+        else:
+            self.delta_f += (self.p_g - self.p_l - self.d*self.delta_f)/self.m
         
     def calculate_p_g(self, z):
         self.p_g += (-self.p_g + z - (1/self.r_d)*self.delta_f)/self.t_g

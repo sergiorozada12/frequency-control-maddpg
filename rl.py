@@ -59,8 +59,29 @@ def get_new_epsilon(epsilon):
 
     return epsilon*0.999999
 
-  
-def get_reward(delta_f, z1, z2, e_f=.05, e_z=.2):
+
+def get_reward(delta_f, actions):
+    """" Get reward from two agents.
+
+        Args:
+            delta_f (float): current deviance from network frequency set point.
+            z1 (float): current control action of agent 1.
+            z2 (float): current control action of agent 2.
+            e_f (float): maximum error admitted in frequency dimension.
+            e_z (float): maximum error admitted in cost dimension.
+
+        Returns:
+            reward (float)
+    """
+
+    for a in actions:
+        if np.abs(a) > .05:
+            # return 0
+            pass
+    return 10 * (.1 ** np.abs(delta_f))
+
+
+def get_reward_tertiary(delta_f, z1, z2, e_f=.05, e_z=.2):
     """" Get reward from two agents.
 
         Args:

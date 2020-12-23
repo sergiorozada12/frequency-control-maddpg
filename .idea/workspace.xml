@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="fa9e6ff7-b555-4968-85e9-8da6962b47ed" name="Default Changelist" comment="feature: network effects included">
-      <change afterPath="$PROJECT_DIR$/time_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="fa9e6ff7-b555-4968-85e9-8da6962b47ed" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/distributed_optimal_control.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/distributed_optimal_control_network.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test_two_gens_secondary.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/train_two_gens_secondary.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dynamics.py" beforeDir="false" afterPath="$PROJECT_DIR$/dynamics.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/rl.py" beforeDir="false" afterPath="$PROJECT_DIR$/rl.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_two_gens.py" beforeDir="false" afterPath="$PROJECT_DIR$/test_two_gens.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_two_gens_network.py" beforeDir="false" afterPath="$PROJECT_DIR$/test_two_gens_network.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train_two_gens_network.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_two_gens_network.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_two_gens.py" beforeDir="false" afterPath="$PROJECT_DIR$/test_two_gens_tertiary.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/time_test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_two_gens.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_two_gens_tertiary.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -173,7 +175,14 @@
       <option name="project" value="LOCAL" />
       <updated>1556085058260</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="feature: general modifications">
+      <created>1608740077295</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1608740077295</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -200,6 +209,7 @@
     <MESSAGE value="feature: test of network models added" />
     <MESSAGE value="feature: reward function including cost for network scenario" />
     <MESSAGE value="feature: network effects included" />
-    <option name="LAST_COMMIT_MESSAGE" value="feature: network effects included" />
+    <MESSAGE value="feature: general modifications" />
+    <option name="LAST_COMMIT_MESSAGE" value="feature: general modifications" />
   </component>
 </project>
