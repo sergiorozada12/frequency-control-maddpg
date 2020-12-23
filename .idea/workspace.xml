@@ -186,7 +186,14 @@
       <option name="project" value="LOCAL" />
       <updated>1608742609269</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="fix: refactored folder structure">
+      <created>1608743411674</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1608743411674</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -216,6 +223,7 @@
     <MESSAGE value="feature: general modifications" />
     <MESSAGE value="feature: added paper augmentations" />
     <MESSAGE value="feature: added readme" />
-    <option name="LAST_COMMIT_MESSAGE" value="feature: added readme" />
+    <MESSAGE value="fix: refactored folder structure" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: refactored folder structure" />
   </component>
 </project>
