@@ -13,7 +13,8 @@ generator_1 = dn.Generator(1.5, alpha=2)
 generator_2 = dn.Generator(1.5, alpha=1)
         
 area = dn.Area(f_set_point=50, m=0.1, d=0.0160, t_g=30, r_d=0.1)
-area.set_load(3.15)
+load = 3.15
+area.set_load(load)
 area.set_generation(3.0)
 area.calculate_delta_f()
 
@@ -22,6 +23,8 @@ z_2 = []
 ps = []
 fs = []
 dw = []
+ls = []
+rocof = []
 
 tf.reset_default_graph()
 graph = tf.train.import_meta_graph("model/model_two_gens.meta")
@@ -62,6 +65,9 @@ with tf.Session() as sess:
         ps.append(area.get_generation())
         fs.append(area.get_frequency())
         dw.append(area.get_delta_f())
+        ls.append(load)
+
+        w_old = area.get_frequency()
 
         curr_f = area.get_delta_f()
         curr_Z_1 = generator_1.get_z()
@@ -82,9 +88,15 @@ with tf.Session() as sess:
         st_1 = new_st_1
         st_2 = new_st_2
 
+        load += np.random.uniform(-.01, .01)
+        area.set_load(load)
+
+        rocof.append(area.get_frequency() - w_old)
+
 plt.rcParams["font.family"] = "Times New Roman"
 plt.rcParams["font.size"] = 14
 plt.rcParams["font.weight"] = 'light'
+matplotlib.rc('text', usetex=True)
 
 del matplotlib.font_manager.weight_dict['roman']
 matplotlib.font_manager._rebuild()
@@ -120,12 +132,13 @@ plt.grid(True)
 plt.show()
 
 fig3, ax3 = plt.subplots()
-ax3.axhline(3.15, c='y')
+ax3.plot(ls, c='y')
 ax3.plot(ps)
 ax3.set_xlabel('time [s]')
 ax3.set_ylabel('total power [pu]')
 ax3.set_xlim(0, 100)
 ax3.ticklabel_format(axis='both', style='sci', scilimits=(-2, 2))
+ax3.legend(['load', 'generation'])
 plt.grid(True)
 plt.show()
 
@@ -134,7 +147,7 @@ ax4.plot(z_1, 'b')
 ax4.plot(z_2, 'r', linestyle='--')
 ax4.plot(np.sum([np.array(z_1), np.array(z_2)], axis=0), 'orange', linestyle='-.')
 ax4.set_xlabel('time [s]')
-ax4.set_ylabel('z [pu]')
+ax4.set_ylabel('$z_i$ [pu]')
 ax4.set_xlim(0, 100)
 ax4.set_ylim(0, 3.5)
 ax4.legend(['generator-agent 1', 'generator-agent 2', 'total'])
@@ -143,10 +156,10 @@ plt.grid(True)
 plt.show()
 
 fig5, ax5 = plt.subplots()
-ax5.axhline(50, c='y')
-ax5.plot(fs)
+ax5.axhline(np.round(2*np.pi*50), c='y')
+ax5.plot(np.round(np.array(fs)*2*np.pi), 'b')
 ax5.set_xlabel('time [s]')
-ax5.set_ylabel('f (Hz)')
+ax5.set_ylabel('$w$ [rad/s]')
 ax5.set_xlim(0, 100)
 ax5.ticklabel_format(axis='both', style='sci', scilimits=(-2, 2))
 plt.grid(True)
@@ -156,7 +169,7 @@ fig6, ax6 = plt.subplots()
 ax6.axhline(0, c='y')
 ax6.plot(dw)
 ax6.set_xlabel('time [s]')
-ax6.set_ylabel('dw')
+ax6.set_ylabel('$\Delta \omega$')
 ax6.set_xlim(0, 100)
 plt.grid(True)
 plt.show()
@@ -169,9 +182,20 @@ ax7.plot(z_2_cost, 'r', linestyle='--')
 ax7.plot(np.sum([np.array(z_1_cost), np.array(z_2_cost)], axis=0), 'orange', linestyle='-.')
 ax7.legend(['generator-agent 1', 'generator-agent 2', 'total'])
 ax7.set_xlabel('time [s]')
-ax7.set_ylabel('c [£/pu]')
+ax7.set_ylabel('$c_i$ [£/pu]')
 ax7.set_xlim(0, 100)
 ax7.set_ylim(0, 9)
 ax7.ticklabel_format(axis='both', style='sci', scilimits=(-2, 2))
 plt.grid(True)
 plt.show()
+
+fig8, ax8 = plt.subplots()
+ax8.plot(np.array(rocof)/(2*np.pi))
+ax8.set_xlim(0, 100)
+plt.ylabel("RoCoF [Hz/s]")
+plt.grid(True)
+plt.show()
+
+rocof = np.array(rocof)/(2*np.pi)
+print(np.max(rocof), np.min(rocof), np.mean(rocof))
+

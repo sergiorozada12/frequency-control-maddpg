@@ -20,6 +20,7 @@ n_var = 11
 buffer_size = 1000
 p_tot = 0
 cum_r_list = []
+f_m = 1
 b = np.array([[1, .01],
               [.01, 1]])
 
@@ -54,20 +55,20 @@ with tf.Session() as sess:
         # Store the experience from the episode
         episode_buffer = []
         
-        # Instances of the environment
-        gen_1 = dn.Generator(1.5, alpha=2)
-        gen_2 = dn.Generator(1.5, alpha=1)
+        # Instances of the environment -> solution of the simplex 2.5/0.5
+        gen_1 = dn.Generator(1.5, alpha=1)
+        gen_2 = dn.Generator(1.5, alpha=2)
         
         network_node_1 = dn.NetworkNode(f_set_point=50, m=0.1, d=0.0160, t_g=30, r_d=0.1, idx=0)
         network_node_2 = dn.NetworkNode(f_set_point=50, m=0.15, d=0.0180, t_g=30, r_d=0.08, idx=1)
 
-        network_node_1.set_load(1.5 + (- 0.25 + np.random.rand()/2))
-        network_node_2.set_load(1.5 + (- 0.25 + np.random.rand()/2))
+        network_node_1.set_load(1.5 + (- 0.4 + np.random.rand()/2))
+        network_node_2.set_load(1.5 + (- 0.4 + np.random.rand()/2))
 
         network_node_1.set_generation(1.5)
         network_node_2.set_generation(1.5)
 
-        network = dn.Network([network_node_1, network_node_2], b)
+        network = dn.Network([network_node_1, network_node_2], b, f_m)
 
         network_node_1.set_true_load(network.get_true_load(network_node_1.idx))
         network_node_2.set_true_load(network.get_true_load(network_node_2.idx))
@@ -90,12 +91,14 @@ with tf.Session() as sess:
             curr_Z_2 = gen_2.get_z()
             
             # First agent
+            noise_1 = np.random.normal(0.0, .25)
             a_1, new_st_1 = agent_1.a_actor_operation(sess, np.array([curr_f_1, curr_Z_1]).reshape(1, a_dof), st_1)
-            a_1 = a_1[0, 0] + epsilon*np.random.normal(0.0, .1)
+            a_1 = (1-epsilon)*a_1[0, 0] + epsilon*noise_1
             
             # Second agent
+            noise_2 = np.random.normal(0.0, .25)
             a_2, new_st_2 = agent_2.a_actor_operation(sess, np.array([curr_f_2, curr_Z_2]).reshape(1, a_dof), st_2)
-            a_2 = a_2[0, 0] + epsilon*np.random.normal(0.0, .1)
+            a_2 = (1-epsilon)*a_2[0, 0] + epsilon*noise_2
             
             # Take the action, modify environment and get the reward
             gen_1.modify_z(a_1)
@@ -104,19 +107,19 @@ with tf.Session() as sess:
             network_node_1.calculate_p_g(gen_1.get_z())
             network_node_2.calculate_p_g(gen_2.get_z())
 
-            network_node_1.calculate_nu()
-            network_node_2.calculate_nu()
-
             network_node_1.set_true_load(network.get_true_load(network_node_1.idx))
             network_node_2.set_true_load(network.get_true_load(network_node_2.idx))
 
             network_node_1.calculate_delta_f()
             network_node_2.calculate_delta_f()
 
+            network_node_1.calculate_nu()
+            network_node_2.calculate_nu()
+
             new_f_1 = network_node_1.get_delta_f()
             new_f_2 = network_node_2.get_delta_f()
 
-            r = rl.get_network_reward([network_node_1, network_node_2], [gen_1, gen_2], e_f=.1, e_z=.1)
+            r = rl.get_network_reward([network_node_1, network_node_2], [gen_1, gen_2], e_f=.1)
             cum_r += r
 
             # Store the experience and print some data
@@ -124,7 +127,7 @@ with tf.Session() as sess:
                                    new_f_1, new_f_2, a_1, a_2, r])
             episode_buffer.append(experience)
 
-            print("Delta f1: {:+04.2f}   Delta f2: {:+04.2f}   Z1: {:05.2f}  Z2: {:05.2f}  Reward: {:04d}\
+            print("Delta f1: {:+04.2f}   Delta f2: {:+04.2f}   Z1: {:05.2f}  Z2: {:05.2f}  Reward: {:04f}\
    Epsilon: {:05.4f}   a1: {:+04.2f}    a2: {:+04.2f}   Q1: {:+05.1f}  Q2: {:+05.1f}"
                   .format(curr_f_1, curr_f_2, curr_Z_1, curr_Z_2, r, epsilon, a_1, a_2,
                           sess.run(agent_1.critic.q, feed_dict={agent_1.critic.inp: np.array(
@@ -214,6 +217,6 @@ with tf.Session() as sess:
     """ SAVE THE DATA"""
 
     saver = tf.train.Saver()
-    saver.save(sess, "model/model_two_gens_network")
-    with open("rewards/two_gens_network_reward.pickle", "wb") as handle:
+    saver.save(sess, "model/model_two_gens_network_cost")
+    with open("rewards/two_gens_network_reward_cost.pickle", "wb") as handle:
         pck.dump(cum_r_list, handle, protocol=pck.HIGHEST_PROTOCOL)

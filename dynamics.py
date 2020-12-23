@@ -29,6 +29,9 @@ class Generator:
     def get_z(self):
         return self.z
 
+    def get_cost(self):
+        return self.z*self.alpha
+
 
 class Area:
     """ Implements each area frequency conditions in Secondary Control
@@ -154,16 +157,18 @@ class NetworkNode:
 
 class Network:
 
-    def __init__(self, nodes, b):
+    def __init__(self, nodes, b, f_m):
 
         self.nodes = nodes
         self.b = b
         self.n_nodes = len(nodes)
+        self.f_m = f_m
 
     def get_true_load(self, idx):
 
         load = self.nodes[idx].get_load()
         nu_diff = [self.b[idx, i]*(self.nodes[idx].get_nu() - self.nodes[i].get_nu()) for i in range(self.n_nodes)]
+        nu_diff = [self.f_m if nu > self.f_m else -self.f_m if nu < -self.f_m else nu for nu in nu_diff]
 
         return load + sum(nu_diff)
 
